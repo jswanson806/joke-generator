@@ -109,7 +109,7 @@ func main() {
 
 		Returns Names struct
 */
-func getRandomName() (Names, error) {
+var getRandomName = func() (Names, error) {
 	// Parse randNameEndpoint into a URL structure
 	base, err := url.Parse(randNameEndpoint)
 	// Handle errors while parsing and exit program
@@ -168,7 +168,7 @@ func getRandomName() (Names, error) {
 
 		Returns Joke struct
 */
-func getRandomJoke(firstName, lastName string) (string, error) {
+var getRandomJoke = func(firstName, lastName string) (string, error) {
 	// Parse randJokeBaseEndpoint into a URL structure
 	base, err := url.Parse(randJokeBaseEndpoint)
 	// Handle errors while parsing url and exit program
@@ -201,6 +201,7 @@ func getRandomJoke(firstName, lastName string) (string, error) {
 		fmt.Printf("client: error making http request: %s\n", err)
 		os.Exit(1)
 	}
+
 	// Print client message and status code for debugging
 	fmt.Printf("client: got response!\n")
 	fmt.Printf("client: status code: %d\n", res.StatusCode)
@@ -228,7 +229,7 @@ func getRandomJoke(firstName, lastName string) (string, error) {
 
 		Accepts a string and Writer
 */
-func returnCompleteJoke(joke string, w http.ResponseWriter) {
+var returnCompleteJoke = func(joke string, w http.ResponseWriter) {
 	// Write joke string
 	_, err := io.WriteString(w, joke)
 	// Handle errors while writing response
