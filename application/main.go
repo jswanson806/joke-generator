@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"sync"
 	"time"
 )
@@ -46,9 +45,9 @@ func getRoot(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer wg.Done()
 		name, err = getRandomName()
-		// Handle error while getting name
+		// Set error while getting name
 		if err != nil {
-			fmt.Println("Error getting name:", err)
+			err = fmt.Errorf("failed to get name: %w", err)
 			return
 		}
 	}()
@@ -56,7 +55,7 @@ func getRoot(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 	//Handle name retrieval error
 	if err != nil {
-		http.Error(w, "Failed to get name", http.StatusInternalServerError)
+		http.Error(w, "failed to get name", http.StatusInternalServerError)
 		return
 	}
 
@@ -70,7 +69,7 @@ func getRoot(w http.ResponseWriter, r *http.Request) {
 		joke, err = getRandomJoke(name.FirstName, name.LastName)
 		// Handle error while getting joke
 		if err != nil {
-			fmt.Println("Error getting joke:", err)
+			err = fmt.Errorf("error getting joke: %w", err)
 			return
 		}
 	}()
@@ -78,7 +77,7 @@ func getRoot(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 	// Handle joke retrieval error
 	if err != nil {
-		http.Error(w, "Failed to get joke", http.StatusInternalServerError)
+		http.Error(w, "failed to get joke", http.StatusInternalServerError)
 		return
 	}
 
@@ -120,17 +119,15 @@ func main() {
 var getRandomName = func() (Names, error) {
 	// Parse randNameEndpoint into a URL structure
 	base, err := url.Parse(randNameEndpoint)
-	// Handle errors while parsing and exit program
+	// Handle errors while parsing
 	if err != nil {
-		fmt.Printf("client could not parse url: %s\n", err)
-		os.Exit(1)
+		return Names{}, fmt.Errorf("client could not parse url: %s", err)
 	}
 	// Create the GET request
 	req, err := http.NewRequest(http.MethodGet, base.String(), nil)
-	// Handle errors creating request and exit program
+	// Handle errors creating request
 	if err != nil {
-		fmt.Printf("client could not create request: %s\n", err)
-		os.Exit(1)
+		return Names{}, fmt.Errorf("client could not create request: %s", err)
 	}
 	// Timeout if request takes longer than 30 seconds
 	client := http.Client{
@@ -138,20 +135,18 @@ var getRandomName = func() (Names, error) {
 	}
 	// Make the request
 	res, err := client.Do(req)
-	// Handle errors while making request and exit program
+	// Handle errors while making request
 	if err != nil {
-		fmt.Printf("client: error making http request: %s\n", err)
-		os.Exit(1)
+		return Names{}, fmt.Errorf("client: error making http request: %s", err)
 	}
 	// Print client message and status code for debugging
 	fmt.Printf("client: got response!\n")
 	fmt.Printf("client: status code: %d\n", res.StatusCode)
 	// Read the response body
 	resBody, err := io.ReadAll(res.Body)
-	// Handle errors while reading response body and exit program
+	// Handle errors while reading response body
 	if err != nil {
-		fmt.Printf("client: could not read response body: %s\n", err)
-		os.Exit(1)
+		return Names{}, fmt.Errorf("client: could not read response body: %s", err)
 	}
 	// Initialize struct to hold return values
 	var n Names
@@ -161,13 +156,12 @@ var getRandomName = func() (Names, error) {
 
 		// Handle errors while unmarshalling resBody JSON and exit program
 		if err := json.Unmarshal(resBody, &n); err != nil {
-			fmt.Println("Error unmarshalling JSON:", err)
-			os.Exit(1)
+			return Names{}, fmt.Errorf("error unmarshalling JSON: %s", err)
 		}
 		// If not valid JSON, handle error and print body
 		//	does not cause failure state
 	} else {
-		fmt.Println("Non-JSON response received:", string(resBody))
+		return Names{}, fmt.Errorf("non-JSON response received: %s", string(resBody))
 	}
 	// Return Names struct
 	return n, err
@@ -189,10 +183,9 @@ var getRandomJoke = func(firstName, lastName string) (string, error) {
 	// Parse randJokeBaseEndpoint into a URL structure
 	base, err := url.Parse(randJokeBaseEndpoint)
 
-	// Handle errors while parsing url and exit program
+	// Handle errors while parsing url
 	if err != nil {
-		fmt.Printf("client could not parse url: %s\n", err)
-		os.Exit(1)
+		return "", fmt.Errorf("client could not parse url: %s", err)
 	}
 
 	// Initialize Values map 'params'
@@ -210,8 +203,7 @@ var getRandomJoke = func(firstName, lastName string) (string, error) {
 
 	// Handle errors while creating the request and exit program
 	if err != nil {
-		fmt.Printf("client could not create request: %s\n", err)
-		os.Exit(1)
+		return "", fmt.Errorf("client could not create request: %s", err)
 	}
 
 	// Timeout if request takes longer than 30 seconds
@@ -224,8 +216,7 @@ var getRandomJoke = func(firstName, lastName string) (string, error) {
 
 	// Handle errors while making request and exit program
 	if err != nil {
-		fmt.Printf("client: error making http request: %s\n", err)
-		os.Exit(1)
+		return "", fmt.Errorf("client: error making http request: %s", err)
 	}
 
 	// Print client message and status code for debugging
@@ -237,8 +228,7 @@ var getRandomJoke = func(firstName, lastName string) (string, error) {
 
 	// Handle errors while reading response body and exit program
 	if err != nil {
-		fmt.Printf("client: could not read response body: %s\n", err)
-		os.Exit(1)
+		return "", fmt.Errorf("client: could not read response body: %s", err)
 	}
 
 	// Initialize new Joke struct
@@ -247,8 +237,7 @@ var getRandomJoke = func(firstName, lastName string) (string, error) {
 	// Unmarshal JSON in resBody and initialize struct Names with data
 	if err := json.Unmarshal(resBody, &j); err != nil {
 		// Handle errors while unmarshalling resBody JSON and exit program
-		fmt.Println("Error unmarshalling JSON:", err)
-		os.Exit(1)
+		return "", fmt.Errorf("error unmarshalling JSON: %s", err)
 	}
 
 	// Return joke string from Joke struct
@@ -266,7 +255,7 @@ var returnCompleteJoke = func(joke string, w http.ResponseWriter) {
 
 	// Handle errors while writing response
 	if err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		http.Error(w, "failed to write response", http.StatusInternalServerError)
 		return
 	}
 }
